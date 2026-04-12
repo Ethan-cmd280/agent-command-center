@@ -2,7 +2,56 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- Password Gate -->
+<script>
+(function(){
+  var CORRECT = 'Wisdom280@';
+  var SESSION_KEY = 'cc_access';
+  var gate = document.createElement('div');
+  gate.id = 'pwdGate';
+  gate.style.cssText = 'position:fixed;inset:0;z-index:9999;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;font-family:system-ui,sans-serif;';
+  gate.innerHTML = '\
+    <div style="text-align:center;">\
+      <div style="font-size:28px;margin-bottom:8px;">🔒</div>\
+      <div style="font-size:18px;color:#e8ff47;font-weight:700;margin-bottom:4px;">COMMAND CENTER</div>\
+      <div style="font-size:12px;color:#666;margin-bottom:24px;">请输入访问密码</div>\
+      <input id="pwdInput" type="password" placeholder="密码" \
+        style="background:#1a1a24;border:1px solid #333;border-radius:8px;color:#fff;font-size:16px;padding:12px 20px;width:260px;text-align:center;outline:none;">\
+      <div id="pwdError" style="color:#ef4444;font-size:12px;height:16px;margin-top:8px;"></div>\
+      <button id="pwdBtn" onclick="checkPwd()" \
+        style="margin-top:12px;background:#e8ff47;color:#0a0a0f;border:none;border-radius:8px;font-size:14px;font-weight:700;padding:12px 40px;cursor:pointer;">进入指挥中心</button>\
+    </div>';
+  document.documentElement.appendChild(gate);
+
+  // Check session on load
+  if (sessionStorage.getItem(SESSION_KEY) === '1') { hideGate(); }
+
+  function checkPwd() {
+    var val = document.getElementById('pwdInput').value;
+    if (val === CORRECT) {
+      sessionStorage.setItem(SESSION_KEY, '1');
+      hideGate();
+    } else {
+      document.getElementById('pwdError').textContent = '密码错误，请重试';
+      document.getElementById('pwdInput').value = '';
+      document.getElementById('pwdInput').focus();
+    }
+  }
+
+  function hideGate() {
+    var g = document.getElementById('pwdGate');
+    if (g) { g.style.opacity = '0'; g.style.transition = 'opacity 0.4s'; setTimeout(function(){ g.remove(); }, 400); }
+  }
+
+  window.checkPwd = checkPwd;
+
+  // Enter key support
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') checkPwd();
+  });
+})();
+</script>
 <title>指挥中心 · Agent 群</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -345,11 +394,95 @@
 
   /* Mobile: show quick-@ bar, hide desktop-only hints */
   @media (max-width: 768px) {
-    .mobile-quick-at { display: flex; }
-    .input-hint { display: none; }
-    .sidebar-header .online-count { display: none; }
-    .sidebar-member-list { display: none; }
-    .sidebar-footer { display: none; }
+    /* 全屏聊天，修复100vw溢出问题 */
+    html, body { overflow-x: hidden; }
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+      height: 100dvh;
+    }
+    .sidebar { display: none; }
+
+    /* 聊天区域约束 */
+    .main {
+      width: 100%;
+      max-width: 100vw;
+      overflow: hidden;
+    }
+
+    /* 头部精简 */
+    .chat-header {
+      padding: 10px 14px;
+      min-height: 52px;
+      flex-shrink: 0;
+    }
+    .chat-title-icon { font-size: 18px; }
+    .brand-name { font-size: 13px; }
+    .chat-title-desc { display: none; }
+    .header-btns { gap: 6px; }
+    .header-btn { padding: 4px 7px; font-size: 11px; border-radius: 6px; }
+
+    /* 消息区域 - 可滚动 */
+    .messages {
+      padding: 10px 10px;
+      gap: 3px;
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .msg-group { gap: 8px; padding: 6px 6px; }
+    .msg-avatar { width: 28px; height: 28px; font-size: 14px; border-radius: 7px; flex-shrink: 0; }
+    .msg-author { font-size: 11px; }
+    .msg-time { font-size: 9px; }
+    .msg-text { font-size: 13px; line-height: 1.55; word-break: break-word; }
+    .msg-tag { font-size: 8px; padding: 1px 5px; }
+    .msg-bubble { max-width: 100%; }
+
+    /* 输入区固定底部 */
+    .input-area {
+      padding: 8px 10px;
+      gap: 8px;
+      flex-shrink: 0;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+    #msgInput { padding: 10px 12px; font-size: 15px; min-height: 42px; }
+    .send-btn { width: 40px; height: 40px; font-size: 16px; flex-shrink: 0; }
+
+    /* 快速@按钮行 - 横向滚动不过溢 */
+    .mobile-quick-at {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: 6px 10px;
+      gap: 6px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      flex-shrink: 0;
+    }
+    .mobile-quick-at::-webkit-scrollbar { display: none; }
+    .mobile-at-btn {
+      flex-shrink: 0;
+      padding: 5px 10px;
+      font-size: 11px;
+      border-radius: 16px;
+      white-space: nowrap;
+    }
+
+    /* 模态框适配 */
+    .modal-box {
+      margin: 10px;
+      width: calc(100vw - 20px);
+      max-height: calc(100dvh - 20px);
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .modal-title { font-size: 15px; }
+    .form-label { font-size: 12px; }
+    .form-input-full { padding: 9px 12px; font-size: 13px; }
+    .form-hint { font-size: 10px; }
+    .btn-modal { font-size: 12px; padding: 8px 14px; }
   }
 
   .online-count {
@@ -1863,7 +1996,7 @@ function init() {
       let greetings;
       if (agent.isGrok) {
         greetings = [
-          `⚡ **${agent.name}** 已加入指挥中心${isGrokConfigured() ? '（Supergrok 已就绪）' : '（请配置 API Key 激活）'}！`,
+          `⚡ **${agent.name}** 已加入指挥中心${isDoubaoConfigured() ? '（豆包 AI 已就绪）' : '（请配置 API Key 激活）'}！`,
           `⚡ **${agent.name}** 等待指令${isGrokConfigured() ? '' : ' · 点击右上角 ⚡ 配置'}`,
         ];
       } else {
