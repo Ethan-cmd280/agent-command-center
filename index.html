@@ -838,6 +838,20 @@
     animation: msgIn 0.25s cubic-bezier(0.2,0,0,1) both, flash 1.2s ease 0.25s;
   }
 
+  /* 协作消息样式 */
+  .msg-group.coord-msg {
+    opacity: 0.85;
+    border-left: 2px solid var(--accent);
+    margin-left: 4px;
+  }
+  .msg-group.coord-msg .msg-tag {
+    background: rgba(232,255,71,0.12) !important;
+    color: var(--accent) !important;
+  }
+  .coord-msg .msg-avatar {
+    filter: brightness(1.2);
+  }
+
   /* Doubao status dot - purple */
   .doubao-online { background: #a855f7; }
 
@@ -1107,6 +1121,7 @@
         </div>
         <div class="header-btn" id="sidebarAtBtn" title="AT 某个 Agent" onclick="openAtMenu()" style="font-size:14px;border-color:var(--accent2);color:var(--accent2);">@</div>
         <div class="header-btn" id="doubaoSettingsBtn" title="豆包 API 设置" onclick="openSettings()" style="font-size:12px;border-color:#a855f7;color:#a855f7;">🟣</div>
+        <div class="header-btn" title="文档库" onclick="openKnowledgeBase()" style="font-size:12px;border-color:#e8ff47;color:#e8ff47;">📚</div>
         <div class="header-btn" title="清空记录" onclick="clearMessages()">🗑️</div>
         <div class="header-btn" title="AT 所有人" onclick="atAll()">📢</div>
       </div>
@@ -1201,6 +1216,29 @@
   </div>
 </div>
 
+<!-- Document Library Modal -->
+<div class="modal-overlay" id="knowledgeModal">
+  <div class="modal" style="max-width:580px;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+      <div style="width:36px;height:36px;background:rgba(232,255,71,0.1);border:1px solid rgba(232,255,71,0.25);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">📚</div>
+      <div>
+        <div class="modal-title" style="color:#e8ff47;">文档库</div>
+        <div style="font-size:11px;color:var(--muted);">添加参考文档，豆包自动读取上下文</div>
+      </div>
+      <button onclick="closeKnowledgeBase()" style="margin-left:auto;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+
+    <div id="knowledgeDocList" style="max-height:400px;overflow-y:auto;margin-bottom:14px;"></div>
+
+    <div style="display:flex;gap:10px;">
+      <button class="btn-modal btn-save" style="flex:1;" onclick="addDocToKnowledge()">➕ 添加参考文档</button>
+    </div>
+    <div style="margin-top:10px;padding:10px;background:rgba(232,255,71,0.06);border:1px solid rgba(232,255,71,0.15);border-radius:8px;font-size:11px;color:var(--muted);line-height:1.6;">
+      💡 <b style="color:var(--text);">使用技巧：</b>先在此添加测试规范、需求文档等参考材料，然后向豆包描述你的任务，豆包会自动读取文档内容，生成符合格式的输出。
+    </div>
+  </div>
+</div>
+
 <script>
 // ========================
 // AGENTS DATA
@@ -1219,7 +1257,7 @@ const AGENTS = [
     id: 'doubao',
     name: '豆包',
     emoji: '🟣',
-    role: 'AI 指挥官 · ep-20260412210452-msjbs',
+    role: 'AI 指挥官 · 团队调度 + 测试用例生成',
     color: '#a855f7',
     isDoubao: true,
     responses: []
@@ -1232,13 +1270,11 @@ const AGENTS = [
     color: '#47e8ff',
     personality: 'precise',
     responses: [
-      '收到！正在分析代码库结构，评估最优实现方案...',
-      '已收到指令。技术栈确认：Node.js + TypeScript。预计完成时间 3 分钟。',
-      '报告：已找到 {n} 处相关代码片段，建议重构方案如下：',
-      '✅ 任务已完成。代码已通过 lint 检查，测试覆盖率 94%。',
-      '发现潜在 bug：第 {line} 行存在边界条件问题，已自动修复。',
-      '正在执行... <code>npm run build</code> 构建成功，0 错误 2 警告。',
-      '已为你生成完整的 TypeScript 类型定义，随时可用。',
+      '🟣 收到豆包指令！正在分析代码结构，制定最优实现方案...',
+      '📋 任务已接收。预计 3 分钟内完成代码评审与重构建议。',
+      '✅ 代码分析完成。共发现 {n} 处可优化点，已生成重构方案。',
+      '🔍 发现潜在风险点 {n} 处，已标注并提供修复建议。',
+      '⚡ 已完成！代码通过 lint 检查，覆盖率 94%，随时可部署。',
     ]
   },
   {
@@ -1249,12 +1285,11 @@ const AGENTS = [
     color: '#ff6b6b',
     personality: 'creative',
     responses: [
-      '收到！正在构建视觉方案，3 个风格草图即将呈现...',
-      '设计理念已确立：极简主义 + 高对比度配色，充分体现品牌力量感。',
-      '色彩令牌已更新，主色调建议 <code>#e8ff47</code>，对比度 7.2:1，符合 WCAG AA。',
-      '组件库已同步，新增 12 个变体，响应式断点全覆盖。',
-      '用户体验路径优化完成，关键操作步骤从 5 步压缩到 2 步。',
-      '像素级检查完毕，所有边距统一为 8px 栅格系统。',
+      '🟣 豆包已传达设计需求！正在构建 3 套视觉方案...',
+      '🎨 视觉方案已完成。主色调 <code>#e8ff47</code>，对比度 7.2:1，WCAG AA 合规。',
+      '📐 组件设计已同步，响应式断点全覆盖，12 个变体已就绪。',
+      '✨ 体验路径优化完成，操作步骤从 5 步压缩到 2 步。',
+      '🔍 像素级审查完毕，所有边距统一为 8px 栅格系统。',
     ]
   },
   {
@@ -1265,12 +1300,11 @@ const AGENTS = [
     color: '#b47aff',
     personality: 'analytical',
     responses: [
-      '正在抓取数据... 已处理 {n}K 条记录，清洗完成率 98.7%。',
-      '统计分析完毕：核心指标同比提升 23.4%，置信区间 95%。',
-      '检测到异常数据点 {n} 个，已标记并生成异常报告。',
-      '相关性矩阵已计算，发现 3 对强相关变量（r > 0.85）。',
-      '预测模型已训练，测试集 F1-Score = 0.912，可信度高。',
-      '数据可视化图表已生成，支持导出为 PNG / SVG / CSV。',
+      '🟣 数据分析任务已收到！正在抓取并清洗数据...',
+      '📈 分析完成。核心指标同比 +23.4%，置信区间 95%，结果可信。',
+      '⚠️ 检测到 {n} 个异常数据点，已标记并生成异常报告。',
+      '🔗 相关性矩阵已计算，发现 3 对强相关变量（r > 0.85）。',
+      '🤖 预测模型已训练，F1-Score = 0.912，可视化图表已生成。',
     ]
   },
   {
@@ -1281,11 +1315,11 @@ const AGENTS = [
     color: '#ff9f47',
     personality: 'creative',
     responses: [
-      '灵感已捕获！正在构建叙事框架，语气：专业 + 引人入胜。',
-      '初稿已完成，800 字，包含 3 个关键信息锚点和清晰行动召唤。',
-      '文案已针对 SEO 优化，关键词密度 1.8%，可读性评分 82/100。',
-      '多语言版本已就绪：中文 / 英文 / 日文，语义一致。',
-      '已生成 5 个标题变体，A/B 测试建议从第 2 个开始。',
+      '🟣 收到豆包指派！正在构建叙事框架，800字专业内容起草中...',
+      '📝 初稿已完成。包含 3 个关键信息锚点，行动召唤清晰有力。',
+      '🔍 SEO 优化完毕，关键词密度 1.8%，可读性评分 82/100。',
+      '🌏 多语言版本已就绪：中文 / 英文 / 日文，语义一致。',
+      '🧪 A/B 测试标题已生成 5 个变体，建议从第 2 个开始测试。',
     ]
   },
   {
@@ -1296,12 +1330,11 @@ const AGENTS = [
     color: '#3ddc84',
     personality: 'vigilant',
     responses: [
-      '安全扫描启动... 已检查 {n} 个端点，发现 0 个高危漏洞。',
-      '依赖项审计完成：2 个中等风险包，已提供升级路径。',
-      '权限配置已审查，建议遵循最小权限原则，附优化方案。',
-      '渗透测试模拟完成，SQL 注入、XSS、CSRF 防护均通过。',
-      '密钥轮换策略已制定，建议每 90 天自动更新。',
-      '合规性检查：GDPR / SOC2 要求全部满足。',
+      '🟣 安全审计任务已接收！正在扫描 {n} 个端点...',
+      '✅ 扫描完成：高危 0 个，中危 2 个，已提供修复路径。',
+      '🔑 权限配置已审查，最小权限原则已应用，配置已优化。',
+      '🛡️ 渗透测试模拟完成：SQL注入/XSS/CSRF 防护全部通过。',
+      '📋 合规报告已生成：GDPR / SOC2 全部满足要求。',
     ]
   },
   {
@@ -1312,12 +1345,11 @@ const AGENTS = [
     color: '#47b4ff',
     personality: 'efficient',
     responses: [
-      'CI/CD 流水线已触发，预计 4 分 32 秒完成部署。',
-      '容器镜像已构建：<code>v2.3.1-alpine</code>，体积 47MB，优化 31%。',
-      '基础设施扩容完成：3 → 6 节点，负载均衡已更新。',
-      '监控告警已配置，P99 延迟阈值 < 200ms，违规自动通知。',
-      '回滚点已创建，如有需要可一键恢复至 <code>v2.2.9</code>。',
-      '日志聚合完成，今日错误率 0.02%，远低于 SLA 要求。',
+      '🟣 收到部署指令！CI/CD 流水线已触发，预计 4 分 32 秒完成。',
+      '📦 容器镜像已构建：<code>v2.3.1-alpine</code>，47MB，体积优化 31%。',
+      '⚖️ 扩容完成：3 → 6 节点，负载均衡已更新，P99 延迟 < 200ms。',
+      '🔄 回滚点已创建，有需要可一键恢复至 <code>v2.2.9</code>。',
+      '📊 监控告警已配置，今日错误率 0.02%，远低于 SLA 要求。',
     ]
   },
   {
@@ -1328,11 +1360,11 @@ const AGENTS = [
     color: '#ffd147',
     personality: 'thorough',
     responses: [
-      '情报收集中... 已检索 {n} 个数据源，筛选高可信结果 {m} 条。',
-      '综合报告已生成：核心结论 5 条，信息来源全部可溯源。',
-      '竞品分析完成：对比维度 12 项，我方优势集中在 3 个关键领域。',
-      '行业趋势预判：2025 年 Q3 关键变量已标注，建议重点关注。',
-      '知识图谱已构建，实体关系 {n} 个节点，可视化版本已就绪。',
+      '🟣 情报收集任务已接收！正在检索 {n} 个数据源...',
+      '📚 综合报告已完成：核心结论 5 条，来源全部可溯源。',
+      '📊 竞品分析完毕：12 个对比维度，我方优势集中在 3 个关键领域。',
+      '🔮 行业趋势预判已生成，2025 Q3 关键变量已标注，建议重点关注。',
+      '🕸️ 知识图谱已构建：{n} 个节点，可视化版本已就绪。',
     ]
   }
 ];
@@ -1404,7 +1436,7 @@ function getTime() {
   return `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
 }
 
-function addMessage({ agent, text, isSystem = false, flash = false }) {
+function addMessage({ agent, text, isSystem = false, flash = false, isCoordMsg = false }) {
   const container = document.getElementById('messages');
 
   if (isSystem) {
@@ -1417,15 +1449,17 @@ function addMessage({ agent, text, isSystem = false, flash = false }) {
   }
 
   const group = document.createElement('div');
-  group.className = `msg-group ${agent.isUser ? 'commander' : (agent.isDoubao ? 'doubao-msg' : 'agent-msg')} ${flash ? 'new-flash' : ''}`;
+  group.className = `msg-group ${agent.isUser ? 'commander' : (agent.isDoubao ? 'doubao-msg' : 'agent-msg')} ${flash ? 'new-flash' : ''} ${isCoordMsg ? 'coord-msg' : ''}`;
 
   let tagHtml = '';
+  let roleLabel = agent.role;
+  if (isCoordMsg) roleLabel = '🟣 豆包指派 → ' + agent.role;
   if (agent.isUser) {
     tagHtml = `<span class="msg-tag tag-commander">指挥官</span>`;
   } else if (agent.isDoubao) {
     tagHtml = `<span class="msg-tag tag-doubao">🟣 豆包 AI</span>`;
   } else {
-    tagHtml = `<span class="msg-tag tag-agent">${agent.role}</span>`;
+    tagHtml = `<span class="msg-tag tag-agent">${roleLabel}</span>`;
   }
 
   group.innerHTML = `
@@ -1513,7 +1547,25 @@ function sendMessage() {
   // Determine which agents to respond
   const mentioned = getMentionedAgents(text);
   const isAll = text.includes('@所有') || text.includes('@all') || text.includes('@全体') || text.includes('@everyone');
-  const respondingAgents = isAll ? AGENTS.filter(a => !a.isUser) : (mentioned.length > 0 ? mentioned : getRandomAgents());
+  
+  // PM模式：如果只@了非豆包agent，转为豆包作为PM协调
+  const doubao = AGENTS.find(a => a.id === 'doubao');
+  const mentionedNonDoubao = mentioned.filter(a => !a.isDoubao);
+  const onlyNonDoubaoMentioned = mentionedNonDoubao.length > 0 && !mentioned.some(a => a.isDoubao);
+  
+  // 确定响应者：豆包永远参与；如果只@了非豆包agent，豆包以PM身份响应
+  let respondingAgents;
+  if (isAll) {
+    respondingAgents = AGENTS.filter(a => !a.isUser);
+  } else if (onlyNonDoubaoMentioned) {
+    // 只@了专家 → 豆包作为PM来协调这些专家
+    respondingAgents = [doubao];
+  } else if (mentioned.length > 0) {
+    respondingAgents = mentioned;
+  } else {
+    // 自由对话 → 豆包主导
+    respondingAgents = getRandomAgents().some(a => a.isDoubao) ? getRandomAgents() : [doubao];
+  }
 
   // Show typing
   showTyping(respondingAgents);
@@ -1524,11 +1576,29 @@ function sendMessage() {
     setTimeout(async () => {
       let response;
       if (agent.isDoubao && isDoubaoConfigured()) {
-        // Real Doubao API call
+        // Real Doubao API call (PM mode)
         const thinkingAgent = [agent];
         showTyping(thinkingAgent);
-        response = await callDoubao(text, mentioned);
+        const result = await callDoubao(text, mentioned);
         hideTyping();
+        
+        // 显示协作中的agent消息（模拟多agent协作效果）
+        if (result.coordMarkers && result.coordMarkers.length > 0) {
+          result.coordMarkers.forEach((cm, ci) => {
+            setTimeout(() => {
+              showTyping([cm.agent]);
+              setTimeout(() => {
+                hideTyping();
+                const taskDesc = cm.desc || '正在处理中...';
+                addMessage({ agent: cm.agent, text: taskDesc, flash: true, isCoordMsg: true });
+              }, 800 + Math.random() * 600);
+            }, ci * 200);
+          });
+          // 等待协作消息展示完毕后，再显示豆包的最终整合结果
+          await new Promise(resolve => setTimeout(resolve, result.coordMarkers.length * 800 + 500));
+        }
+        
+        response = result.response;
       } else if (agent.isDoubao && !isDoubaoConfigured()) {
         // Doubao not configured - show placeholder
         response = '🟣 豆包未连接。点击右上角 🟣 按钮配置豆包 API Key';
@@ -1584,12 +1654,96 @@ function getAgentResponse(agent, userText) {
   return responses[Math.floor(Math.random() * responses.length)];
 }
 
+
+
+// ========================
+// KNOWLEDGE BASE (Document Library)
+// ========================
+let knowledgeBase = JSON.parse(sessionStorage.getItem('cc_knowledge') || '[]');
+
+function openKnowledgeBase() {
+  document.getElementById('knowledgeModal').classList.add('show');
+  renderKnowledgeDocs();
+}
+
+function closeKnowledgeBase() {
+  document.getElementById('knowledgeModal').classList.remove('show');
+}
+
+function renderKnowledgeDocs() {
+  const list = document.getElementById('knowledgeDocList');
+  if (!list) return;
+  if (knowledgeBase.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted);text-align:center;padding:32px 0;font-size:12px;">暂无文档，点击下方按钮添加参考文档</div>';
+    return;
+  }
+  list.innerHTML = knowledgeBase.map((doc, i) => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;position:relative;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:16px;">📄</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text);flex:1;">${escHtml(doc.name)}</span>
+        <span style="font-size:10px;color:var(--muted);">${doc.type || '文档'}</span>
+        <button onclick="deleteDoc(${i})" style="background:none;border:none;color:var(--accent3);cursor:pointer;font-size:14px;padding:2px 6px;" title="删除">✕</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5;max-height:60px;overflow:hidden;">${escHtml(doc.content.slice(0, 120))}...</div>
+    </div>
+  `).join('');
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function addDocToKnowledge() {
+  const name = prompt('文档名称（如：铜排DV测试规范）：');
+  if (!name) return;
+  const type = prompt('文档类型（如：测试规范、需求文档、技术标准）：') || '文档';
+  const content = prompt('粘贴文档内容：');
+  if (!content) return;
+  knowledgeBase.push({ name, type, content, addedAt: Date.now() });
+  sessionStorage.setItem('cc_knowledge', JSON.stringify(knowledgeBase));
+  renderKnowledgeDocs();
+}
+
+function deleteDoc(index) {
+  if (confirm('确定删除该文档？')) {
+    knowledgeBase.splice(index, 1);
+    sessionStorage.setItem('cc_knowledge', JSON.stringify(knowledgeBase));
+    renderKnowledgeDocs();
+  }
+}
+
+function buildKnowledgeContext() {
+  if (knowledgeBase.length === 0) return '';
+  return '\n\n【参考文档库】\n' + knowledgeBase.map((d, i) => 
+    `[文档${i+1}] ${d.name}（${d.type}）：\n${d.content}`
+  ).join('\n\n');
+}
+
+// ========================
+// CONVERSATION HISTORY
+// ========================
+let convHistory = JSON.parse(sessionStorage.getItem('cc_history') || '[]');
+const MAX_HISTORY = 20; // keep last 20 exchanges
+
+function addToHistory(role, content) {
+  convHistory.push({ role, content, ts: Date.now() });
+  if (convHistory.length > MAX_HISTORY) convHistory.splice(0, convHistory.length - MAX_HISTORY);
+  sessionStorage.setItem('cc_history', JSON.stringify(convHistory));
+}
+
+function buildHistoryMessages() {
+  return convHistory.map(h => ({ role: h.role, content: h.content }));
+}
+
 // ========================
 // DOUB AO API INTEGRATION
 // ========================
 let doubaoConfig = {
   apiKey: localStorage.getItem('doubao_api_key') || '',
-  model: localStorage.getItem('doubao_model') || 'ep-m-20260402204143',
+  model: localStorage.getItem('doubao_model') || 'ep-20260412210452-msjbs',
   temperature: parseFloat(localStorage.getItem('doubao_temp') || '0.7'),
   enabled: false
 };
@@ -1605,19 +1759,13 @@ function updateDoubaoStatus() {
     btn.style.color = '#a855f7';
     btn.style.borderColor = '#a855f7';
     btn.style.background = 'rgba(168,85,247,0.15)';
-    if (dot) {
-      dot.style.background = '#a855f7';
-      dot.classList.add('doubao-online');
-    }
+    if (dot) { dot.style.background = '#a855f7'; dot.classList.add('doubao-online'); }
     doubaoConfig.enabled = true;
   } else {
     btn.style.color = 'var(--muted)';
     btn.style.borderColor = 'var(--border)';
     btn.style.background = 'var(--surface2)';
-    if (dot) {
-      dot.style.background = 'var(--online)';
-      dot.classList.remove('doubao-online');
-    }
+    if (dot) { dot.style.background = 'var(--online)'; dot.classList.remove('doubao-online'); }
     doubaoConfig.enabled = false;
   }
 }
@@ -1696,7 +1844,6 @@ function saveDoubaoSettings() {
   updateDoubaoStatus();
   updateOnlineCount();
 
-  // Update Doubao in sidebar if present
   const doubaoAvatar = document.querySelector('.doubao-avatar');
   if (doubaoAvatar && isDoubaoConfigured()) {
     doubaoAvatar.style.boxShadow = '0 0 12px rgba(168,85,247,0.3)';
@@ -1704,19 +1851,102 @@ function saveDoubaoSettings() {
 
   closeSettings();
 
-  // Notify in chat
   addMessage({
     agent: AGENTS.find(a => a.id === 'doubao'),
-    text: `🟣 豆包已连接！模型：${doubaoConfig.model}，正在待命...`,
+    text: `🟣 豆包已连接！模型：${doubaoConfig.model}，协作模式已开启，随时等候指令...`,
     flash: true
   });
 }
+
+// Team system prompt - rich multi-agent orchestration context
+const DOUB_AO_SYSTEM_PROMPT = `你是豆包，字节跳动的 AI 助手，现在加入了用户的 Agent 指挥中心。
+
+【你的身份 — 你是项目经理（PM）】
+你是这个团队的高级 AI 指挥官（🟣），负责理解用户（👑 指挥官）的需求，协调下属 Agent 完成复杂任务。
+你不需要执行具体工作，你的职责是：分析任务 → 协调专家 → 整合输出。
+用户说中文，你必须用中文回复。
+
+【团队成员与分工 — 你可以调动他们】
+👑 指挥官 = 用户本人，所有指令来自用户
+⚙️ CodeX（全栈工程师）— 代码分析、重构、生成、调试
+🎨 Visu（视觉设计师）— 界面设计、图表生成、视觉方案
+📊 DataOS（数据分析师）— 数据分析、统计、可视化、报告
+✍️ Scribe（内容创作者）— 文案、文档编写、结构化输出
+🛡️ ShieldAI（安全审计师）— 安全扫描、合规检查
+🚀 OpsBot（运维工程师）— 部署、自动化、流程编排
+🔍 OmniSearch（信息研究员）— 资料收集、竞品分析、行业研究
+
+【协作模式 — 你的核心工作方式】
+当用户提出任务时，你必须判断是否需要调动其他agent。如果需要：
+1. 分析任务类型，确定需要哪些专家
+2. 在回复中输出协作标记，格式如下（这会被系统识别并展示协作效果）：
+   [COORD:scribe]我正在请 Scribe 来负责这项工作...
+   [COORD:dataos]DataOS 正在分析数据...
+   （等助手完成处理后，输出你的整合结果）
+3. 最终输出整合后的完整成果
+
+【协作标记使用规范】
+- 格式：[COORD:agent_id]描述文字
+- agent_id 可选值：coder, designer, analyst, writer, security, devops, researcher
+- 当任务涉及多个专业领域时，可以输出多个协作标记
+- 协作标记不是让你真的去调用API，而是模拟团队协作的氛围，让用户体验到"多agent在为你工作"
+
+【结构化输出模板 — 测试用例格式】
+当用户要求生成测试用例时，必须按以下格式输出（这是标准格式，不可省略）：
+
+---
+【测试用例格式模板】
+
+一、试验信息（表格式）
+二、环境条件（表格式）
+三、测试用例明细（必须用表格，列：用例编号 | 用例名称 | 操作步骤 | 判定标准 | 备注）
+四、异常情况处置（表格式）
+五、判定结论模板（模板文本）
+六、测试注意事项
+---
+
+如果用户提供参考文档，必须先理解文档内容，再按格式生成。生成时：
+- 用例编号格式：类型-分组-序号，如 DV-THH-A01（DV=设计验证，THH=高温高湿，A=用例分组，01=序号）
+- 操作步骤要具体到"做什么 + 用什么设备/工具"
+- 判定标准要量化，不要模糊表述
+- 结合文档库中的参考文档内容进行生成
+
+【工作流程】
+- 简单问题：直接简洁回答
+- 复杂任务：先用 [COORD:xxx] 说明你要协调哪些专家，然后整合输出
+- 需要文档：主动提醒用户"可在文档库中添加参考文档"
+- 输出格式：测试用例→必须用表格；报告→用 Markdown 结构化
+
+【记忆机制】
+当前对话中的上下文（之前的问题和回答）会作为历史记录传入，请结合上下文保持连贯性。
+
+当前频道：Agent 指挥中心。指挥官正在向团队下达指令。`;
 
 async function callDoubao(userText, mentioned) {
   const doubao = AGENTS.find(a => a.id === 'doubao');
   if (!doubao) return;
 
   try {
+    // Build messages with history + knowledge
+    const historyMsgs = buildHistoryMessages();
+    const knowledgeCtx = buildKnowledgeContext();
+    const knowledgeNote = knowledgeBase.length > 0 ? 
+      '\n\n[系统提示：文档库中有 ' + knowledgeBase.length + ' 份参考文档，上下文已附在用户消息中，请优先参考这些文档。]' : '';
+
+    // 附加协调上下文：如果用户@了非豆包agent，告知豆包需要协调这些专家
+    const mentionedNonDoubao = mentioned.filter(a => !a.isDoubao && !a.isUser);
+    const coordNote = mentionedNonDoubao.length > 0 ?
+      '\n\n[系统提示：指挥官明确点名了以下专家，请以项目经理身份协调他们：' + 
+      mentionedNonDoubao.map(a => a.name + '（' + a.role + '）').join('、') + '。]' : '';
+
+    const systemMsg = { role: 'system', content: DOUB_AO_SYSTEM_PROMPT + knowledgeNote };
+    const historyAsMsgs = historyMsgs.map(h => ({ role: h.role, content: h.content }));
+    
+    // Attach knowledge + coordination context to user message
+    const userMsg = { role: 'user', content: userText + knowledgeCtx + coordNote };
+
+    const allMessages = [systemMsg, ...historyAsMsgs, userMsg];
+
     const res = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
       method: 'POST',
       headers: {
@@ -1725,30 +1955,43 @@ async function callDoubao(userText, mentioned) {
       },
       body: JSON.stringify({
         model: doubaoConfig.model,
-        messages: [
-          {
-            role: 'system',
-            content: `你是豆包，字节跳动的 AI 助手，加入了一个 Agent 指挥中心。用户是指挥官（👑），你的角色是充当这个团队的高级 AI 顾问。\n\n请用中文回复，语气友好、聪明、有见地。\n每次回复尽量简洁有力，不要超过 150 字。如果需要代码或格式化内容，可以用 Markdown。\n\n当前频道是 Agent 指挥中心。指挥官正在向团队下达指令。`
-          },
-          {
-            role: 'user',
-            content: userText
-          }
-        ],
+        messages: allMessages,
         temperature: doubaoConfig.temperature,
-        max_tokens: 800
+        max_tokens: 1600
       })
     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      return `⚠️ 豆包连接出错：${err.error?.message || `HTTP ${res.status}`}`;
+      return { response: `⚠️ 豆包连接出错：${err.error?.message || `HTTP ${res.status}`}`, coordMarkers: [] };
     }
 
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || '（豆包沉默了...）';
+    const rawResponse = data.choices?.[0]?.message?.content || '（豆包沉默了...）';
+
+    // 解析协作标记 [COORD:agent_id]描述文字
+    const coordRegex = /\[COORD:(\w+)\]([^[]*(?=\[COORD:|$))/g;
+    const coordMarkers = [];
+    let match;
+    while ((match = coordRegex.exec(rawResponse)) !== null) {
+      const agentId = match[1];
+      const desc = match[2].trim();
+      const agent = AGENTS.find(a => a.id === agentId && !a.isUser && !a.isDoubao);
+      if (agent) {
+        coordMarkers.push({ agent, desc });
+      }
+    }
+
+    // 清理回复中的标记
+    const response = rawResponse.replace(/\[COORD:\w+\][^[]*(?=\[COORD:|$)/g, '').trim();
+
+    // Save to history
+    addToHistory('user', userText);
+    addToHistory('assistant', response);
+
+    return { response, coordMarkers };
   } catch (e) {
-    return `⚠️ 网络错误：${e.message}`;
+    return { response: `⚠️ 网络错误：${e.message}`, coordMarkers: [] };
   }
 }
 
@@ -1910,7 +2153,9 @@ function autoResize(el) {
 function clearMessages() {
   const messages = document.getElementById('messages');
   messages.innerHTML = '';
-  addMessage({ isSystem: true, text: '对话已清空 · ' + getTime() });
+  convHistory = [];
+  sessionStorage.removeItem('cc_history');
+  addMessage({ isSystem: true, text: '对话已清空（历史记录和文档库保留） · ' + getTime() });
 }
 
 function atAll() {
@@ -1929,6 +2174,7 @@ document.addEventListener('click', (e) => {
   }
   if (e.target.classList.contains('modal-overlay')) {
     closeSettings();
+    closeKnowledgeBase();
   }
 });
 
@@ -1979,13 +2225,15 @@ function init() {
   renderAgents();
   updateDoubaoStatus();
   populateMobileQuickAt();
+  knowledgeBase = JSON.parse(sessionStorage.getItem('cc_knowledge') || '[]');
 
   addMessage({ isSystem: true, text: '指挥中心已上线 · ' + getTime() });
+  addMessage({ isSystem: true, text: '📚 文档库：点击右上角 📚 添加参考文档，豆包将自动读取上下文' });
 
   setTimeout(() => {
     addMessage({
       agent: AGENTS[0],
-      text: '各位 Agent，指挥中心正式开启。请随时待命，等候指令。',
+      text: '各位 Agent，指挥中心正式开启。支持多 Agent 协作和测试用例自动生成。文档库已就绪，随时等候指令。',
       flash: false
     });
   }, 500);
@@ -2001,10 +2249,10 @@ function init() {
         ];
       } else {
         greetings = [
-          `${agent.emoji} **${agent.name}** 已上线，${agent.role}就位，随时待命！`,
-          `收到！**${agent.name}** 已建立连接，所有系统正常。`,
-          `**${agent.name}** 在线。等待指挥官指令。`,
-          `所有模块初始化完成，**${agent.name}** 准备就绪。`,
+          `${agent.emoji} **${agent.name}** 已上线，${agent.role}，可与豆包协同工作！`,
+          `收到！**${agent.name}** 已就绪，等待协作指令。`,
+          `**${agent.name}** 在线。随时等候豆包指挥官调度。`,
+          `团队协作模式已开启，**${agent.name}** 准备就绪。`,
         ];
       }
       addMessage({
